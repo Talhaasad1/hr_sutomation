@@ -25,31 +25,67 @@ import hr_pages
 import admin_pages
 
 st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wide")
-
-# 2. NAYA STRONG CSS CODE (Yahan paste kiya hai)
-strong_hide_css = """
+# 2. CSS + JavaScript combo jo is red bar ko har haal me delete karega
+hide_everything_script = """
     <style>
-    /* Top elements */
+    /* Top aur default footer elements ko hatane ke liye CSS */
     header {visibility: hidden !important; display: none !important;}
     #MainMenu {visibility: hidden !important; display: none !important;}
     footer {visibility: hidden !important; display: none !important;}
     
-    /* Bottom right toolbar container aur uske andar ke saare elements (icon + pic) */
-    div[class*="stAppToolbar"], .stAppToolbar {display: none !important;}
-    div[data-testid="stViewerToolbar"] {display: none !important; width: 0px !important; height: 0px !important;}
-    div[data-testid="stStatusWidget"] {display: none !important;}
-    div[class*="stIdentityWidget"] {display: none !important;}
-    div[data-testid="stUserAvatar"] {display: none !important;}
-    
-    /* Screen ke bottom right fixed overlays ko lock karna */
-    iframe, div[style*="position: fixed"][style*="bottom"] {
+    /* Streamlit ke standard viewer widgets */
+    [data-testid="stViewerToolbar"], [data-testid="stStatusWidget"], .stAppToolbar {
         display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
     }
     </style>
+
+    <script>
+    // Yeh script pure browser window (parent layer) ko monitor karega
+    const removeHostedToolbar = () => {
+        // 1. "Hosted with Streamlit" toolbar aur button containers ko target karna
+        const badElements = document.querySelectorAll([
+            '.stAppDeployButton', 
+            '[data-testid="stViewerToolbar"]',
+            'div[class*="stIdentityWidget"]',
+            'div[data-testid="stUserAvatar"]',
+            'iframe[title="Streamlit connection status"]'
+        ].join(','));
+        badElements.forEach(el => el.remove());
+
+        // 2. Parent window (Streamlit Cloud framework) ke red bar ko directly target karna
+        // Yeh window ke sab se bahr wale document me se red bar dhoondta hai
+        try {
+            const topDoc = window.top.document;
+            const hostedBars = topDoc.querySelectorAll('div[class*="HostedWithStreamlit"], div[class*="StatusWidget"], footer');
+            hostedBars.forEach(el => el.remove());
+            
+            // Agar wo kisi fixed position div me host ho rha hai:
+            const allFixedDivs = topDoc.querySelectorAll('div[style*="position: fixed"]');
+            allFixedDivs.forEach(div => {
+                if (div.innerText.includes('Hosted with Streamlit') || div.innerHTML.includes('talhaasad1')) {
+                    div.remove();
+                }
+            });
+        } catch (e) {
+            // Agar cross-origin block ho toh current window me filter apply karein
+            const allDivs = document.querySelectorAll('div[style*="position: fixed"]');
+            allDivs.forEach(div => {
+                if (div.innerText.includes('Hosted with Streamlit') || div.innerHTML.includes('talhaasad1')) {
+                    div.style.display = 'none';
+                }
+            });
+        }
+    };
+
+    // Har 300ms baad isko run karo taake element load hote hi fauran delete ho jaye
+    setInterval(removeHostedToolbar, 300);
+    </script>
 """
-st.markdown(strong_hide_css, unsafe_allow_html=True)
+
+# HTML component ke zariye script ko app me inject karna
+import streamlit.components.v1 as components
+components.html(hide_everything_script, height=0, width=0)
+
 db.init_db()
 ui.inject_custom_css()
 
