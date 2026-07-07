@@ -28,27 +28,33 @@ st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wid
 
 import streamlit as st
 
-# Agar aap page config use kar rahe hain toh wo sab se pehle aayega
 st.set_page_config(page_title="Machine Learning 1 Limited", layout="wide")
 
-# ---- YAHAN PAR PASTE KARNA HAI ----
-hide_elements_css = """
+# Yeh wala code paste karein jo poore bottom toolbar block ko hi vanish kar dega
+hide_absolute_css = """
     <style>
-    header {visibility: hidden;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stViewerToolbar"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
+    /* Top elements */
+    header {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    
+    /* Bottom right toolbar container aur uske andar ke saare elements (icon + pic) */
+    [data-testid="stViewerToolbar"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
+    
+    /* Global class bypass: Streamlit ke floating overlay bars ko block karne ke liye */
+    .stAppToolbar {display: none !important;}
+    div[class*="stViewerToolbar"] {display: none !important;}
+    div[class*="stStatusWidget"] {display: none !important;}
     div[class*="stIdentityWidget"] {display: none !important;}
-    div[data-testid="stUserAvatar"] {display: none !important;}
+    
+    /* Sabse behtreen tarika: Page ke bottom edge par fixed overlays ko block karna */
+    div[style*="position: fixed"][style*="bottom"] {
+        display: none !important;
+    }
     </style>
 """
-st.markdown(hide_elements_css, unsafe_allow_html=True)
-# -----------------------------------
-
-# Iske niche aapka baqi ka saara code aayega (App Title, Data Science Jobs, etc.)
-st.title("Open Positions")
-# ... baqi code ...
+st.markdown(hide_absolute_css, unsafe_allow_html=True)
 
 db.init_db()
 ui.inject_custom_css()
