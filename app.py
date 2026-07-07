@@ -26,19 +26,30 @@ import admin_pages
 
 st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wide")
 
-import streamlit as st
-
-st.set_page_config(page_title="Machine Learning 1 Limited", layout="wide")
-
-hide_css = """
+# 2. NAYA STRONG CSS CODE (Yahan paste kiya hai)
+strong_hide_css = """
     <style>
-    header {visibility: hidden !important;}
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
+    /* Top elements */
+    header {visibility: hidden !important; display: none !important;}
+    #MainMenu {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    
+    /* Bottom right toolbar container aur uske andar ke saare elements (icon + pic) */
+    div[class*="stAppToolbar"], .stAppToolbar {display: none !important;}
+    div[data-testid="stViewerToolbar"] {display: none !important; width: 0px !important; height: 0px !important;}
+    div[data-testid="stStatusWidget"] {display: none !important;}
+    div[class*="stIdentityWidget"] {display: none !important;}
+    div[data-testid="stUserAvatar"] {display: none !important;}
+    
+    /* Screen ke bottom right fixed overlays ko lock karna */
+    iframe, div[style*="position: fixed"][style*="bottom"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
     </style>
 """
-st.markdown(hide_css, unsafe_allow_html=True)
-
+st.markdown(strong_hide_css, unsafe_allow_html=True)
 db.init_db()
 ui.inject_custom_css()
 
