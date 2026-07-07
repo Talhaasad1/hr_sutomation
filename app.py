@@ -25,66 +25,61 @@ import hr_pages
 import admin_pages
 
 st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wide")
-# 2. CSS + JavaScript combo jo is red bar ko har haal me delete karega
-hide_everything_script = """
+
+# 2. Is HTML structure ke liye special JavaScript MutationObserver
+exact_cleaner_script = """
     <style>
-    /* Top aur default footer elements ko hatane ke liye CSS */
+    /* Default app headers aur footers ko pehle hi block karne ke liye */
     header {visibility: hidden !important; display: none !important;}
     #MainMenu {visibility: hidden !important; display: none !important;}
     footer {visibility: hidden !important; display: none !important;}
-    
-    /* Streamlit ke standard viewer widgets */
-    [data-testid="stViewerToolbar"], [data-testid="stStatusWidget"], .stAppToolbar {
-        display: none !important;
-    }
     </style>
 
     <script>
-    // Yeh script pure browser window (parent layer) ko monitor karega
-    const removeHostedToolbar = () => {
-        // 1. "Hosted with Streamlit" toolbar aur button containers ko target karna
-        const badElements = document.querySelectorAll([
-            '.stAppDeployButton', 
-            '[data-testid="stViewerToolbar"]',
+    // Yeh function targets ko dhoond kar page se delete karega
+    function cleanStreamlitElements() {
+        // React ke generated elements aur badges ko target karne wale selectors
+        const selectors = [
+            'div[class*="HostedWithStreamlit"]',
+            'div[class*="StatusWidget"]',
             'div[class*="stIdentityWidget"]',
-            'div[data-testid="stUserAvatar"]',
-            'iframe[title="Streamlit connection status"]'
-        ].join(','));
-        badElements.forEach(el => el.remove());
+            '[data-testid="stViewerToolbar"]',
+            '[data-testid="stStatusWidget"]',
+            '.stAppToolbar',
+            'div[data-testid="stUserAvatar"]'
+        ];
+        
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.remove());
+        });
 
-        // 2. Parent window (Streamlit Cloud framework) ke red bar ko directly target karna
-        // Yeh window ke sab se bahr wale document me se red bar dhoondta hai
-        try {
-            const topDoc = window.top.document;
-            const hostedBars = topDoc.querySelectorAll('div[class*="HostedWithStreamlit"], div[class*="StatusWidget"], footer');
-            hostedBars.forEach(el => el.remove());
-            
-            // Agar wo kisi fixed position div me host ho rha hai:
-            const allFixedDivs = topDoc.querySelectorAll('div[style*="position: fixed"]');
-            allFixedDivs.forEach(div => {
-                if (div.innerText.includes('Hosted with Streamlit') || div.innerHTML.includes('talhaasad1')) {
-                    div.remove();
-                }
-            });
-        } catch (e) {
-            // Agar cross-origin block ho toh current window me filter apply karein
-            const allDivs = document.querySelectorAll('div[style*="position: fixed"]');
-            allDivs.forEach(div => {
-                if (div.innerText.includes('Hosted with Streamlit') || div.innerHTML.includes('talhaasad1')) {
-                    div.style.display = 'none';
-                }
-            });
-        }
+        // Safe check: Agar inline style se position: fixed wali bottom row bani ho
+        document.querySelectorAll('div[style*="position: fixed"][style*="bottom"]').forEach(div => {
+            if (div.innerText.includes('Hosted with Streamlit') || div.innerText.includes('Created by')) {
+                div.remove();
+            }
+        });
+    }
+
+    // HTML ke #root element par nazar rakhne ke liye observer
+    const targetNode = document.getElementById('root') || document.body;
+    const config = { childList: true, subtree: true };
+
+    const callback = function(mutationsList, observer) {
+        cleanStreamlitElements();
     };
 
-    // Har 300ms baad isko run karo taake element load hote hi fauran delete ho jaye
-    setInterval(removeHostedToolbar, 300);
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+
+    // Backup ke liye har thodi der baad bhi run hota rahega
+    setInterval(cleanStreamlitElements, 300);
     </script>
 """
 
-# HTML component ke zariye script ko app me inject karna
+# Script injection
 import streamlit.components.v1 as components
-components.html(hide_everything_script, height=0, width=0)
+components.html(exact_cleaner_script, height=0, width=0)
 
 db.init_db()
 ui.inject_custom_css()
