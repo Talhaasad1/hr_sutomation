@@ -30,23 +30,27 @@ ui.inject_custom_css()
 
 import streamlit as st
 
-# 1. Page config (agar pehle se add hai toh theek hai)
-st.set_page_config(page_title="My App", layout="wide")
+# Agar aap page config use kar rahe hain toh wo sab se pehle aayega
+st.set_page_config(page_title="Machine Learning 1 Limited", layout="wide")
 
-# 2. Top right options aur bottom footer/manage app ko hide karne ke liye CSS
+# ---- YAHAN PAR PASTE KARNA HAI ----
 hide_elements_css = """
     <style>
-    /* Top right par hamburger menu aur buttons ko hide karne ke liye */
-    #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Bottom right footer aur 'Manage app' button ko hide karne ke liye */
+    #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    div[data-testid="stDecoration"] {display: none;}
+    [data-testid="stViewerToolbar"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    div[class*="stIdentityWidget"] {display: none !important;}
+    div[data-testid="stUserAvatar"] {display: none !important;}
     </style>
 """
-
 st.markdown(hide_elements_css, unsafe_allow_html=True)
+# -----------------------------------
+
+# Iske niche aapka baqi ka saara code aayega (App Title, Data Science Jobs, etc.)
+st.title("Open Positions")
+# ... baqi code ...
 
 defaults = {
     "mode": "career",       # "career" (public) or "staff" (logged-in backend)
