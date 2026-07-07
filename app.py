@@ -28,6 +28,26 @@ st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wid
 db.init_db()
 ui.inject_custom_css()
 
+import streamlit as st
+
+# 1. Page config (agar pehle se add hai toh theek hai)
+st.set_page_config(page_title="My App", layout="wide")
+
+# 2. Top right options aur bottom footer/manage app ko hide karne ke liye CSS
+hide_elements_css = """
+    <style>
+    /* Top right par hamburger menu aur buttons ko hide karne ke liye */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Bottom right footer aur 'Manage app' button ko hide karne ke liye */
+    footer {visibility: hidden;}
+    div[data-testid="stDecoration"] {display: none;}
+    </style>
+"""
+
+st.markdown(hide_elements_css, unsafe_allow_html=True)
+
 defaults = {
     "mode": "career",       # "career" (public) or "staff" (logged-in backend)
     "logged_in": False,
