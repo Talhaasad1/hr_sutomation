@@ -25,8 +25,6 @@ import hr_pages
 import admin_pages
 
 st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wide")
-db.init_db()
-ui.inject_custom_css()
 
 import streamlit as st
 
@@ -51,6 +49,9 @@ st.markdown(hide_elements_css, unsafe_allow_html=True)
 # Iske niche aapka baqi ka saara code aayega (App Title, Data Science Jobs, etc.)
 st.title("Open Positions")
 # ... baqi code ...
+
+db.init_db()
+ui.inject_custom_css()
 
 defaults = {
     "mode": "career",       # "career" (public) or "staff" (logged-in backend)
