@@ -30,7 +30,6 @@ import streamlit as st
 
 st.set_page_config(page_title="Machine Learning 1 Limited", layout="wide")
 
-# 1. CSS (Top aur Footer ke liye)
 hide_css = """
     <style>
     header {visibility: hidden !important;}
@@ -39,34 +38,6 @@ hide_css = """
     </style>
 """
 st.markdown(hide_css, unsafe_allow_html=True)
-
-# 2. JavaScript (Niche wale Red Icon aur Profile Picture ko pakad kar delete karne ke liye)
-hide_js = """
-    <script>
-    function removeStreamlitElements() {
-        // Un saare elements ko dhoondo jahan toolbar ya widget likha ho
-        const selectors = [
-            '[data-testid="stViewerToolbar"]',
-            '[data-testid="stStatusWidget"]',
-            '.stAppToolbar',
-            'div[class*="stIdentityWidget"]',
-            'div[data-testid="stUserAvatar"]'
-        ];
-        
-        selectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => el.remove()); // Directly remove from page
-        });
-    }
-
-    // Har 500 milliseconds (aadhe second) baad check karo taake agar icon dobara aaye toh delete ho jaye
-    setInterval(removeStreamlitElements, 500);
-    </script>
-"""
-
-# Isko components.html ke zariye inject karenge
-import streamlit.components.v1 as components
-components.html(hide_js, height=0, width=0)
 
 db.init_db()
 ui.inject_custom_css()
