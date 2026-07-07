@@ -9,4 +9,4 @@ font = "sans serif"
 maxUploadSize = 10
 
 [client]
-toolbarMode = "off"
+toolbarMode = "minimal"
