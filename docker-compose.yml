@@ -1,0 +1,49 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # Not exposed to the host by default — only the app/worker containers
+    # (on the internal docker network) can reach it. Uncomment the ports
+    # line only if you need to connect from outside for debugging.
+    # ports:
+    #   - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-atsadmin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in your .env file}
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER:-atsadmin}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin
+      - DB_NAME=${DB_NAME:-ats_portal}
+    volumes:
+      - ./assets:/app/assets
+
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: ["python", "worker.py"]
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER:-atsadmin}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin
+      - DB_NAME=${DB_NAME:-ats_portal}
+    volumes:
+      - ./assets:/app/assets
+
+volumes:
+  mongo_data:

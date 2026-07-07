@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+.env
+*.db
+assets/resumes/*
+!assets/resumes/.gitkeep
+assets/logos/*
+!assets/logos/.gitkeep
+assets/offers/*
+!assets/offers/.gitkeep
+.pytest_cache/
+tests/__pycache__/
+*.md
+.DS_Store
