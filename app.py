@@ -30,31 +30,43 @@ import streamlit as st
 
 st.set_page_config(page_title="Machine Learning 1 Limited", layout="wide")
 
-# Yeh wala code paste karein jo poore bottom toolbar block ko hi vanish kar dega
-hide_absolute_css = """
+# 1. CSS (Top aur Footer ke liye)
+hide_css = """
     <style>
-    /* Top elements */
     header {visibility: hidden !important;}
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
-    
-    /* Bottom right toolbar container aur uske andar ke saare elements (icon + pic) */
-    [data-testid="stViewerToolbar"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
-    
-    /* Global class bypass: Streamlit ke floating overlay bars ko block karne ke liye */
-    .stAppToolbar {display: none !important;}
-    div[class*="stViewerToolbar"] {display: none !important;}
-    div[class*="stStatusWidget"] {display: none !important;}
-    div[class*="stIdentityWidget"] {display: none !important;}
-    
-    /* Sabse behtreen tarika: Page ke bottom edge par fixed overlays ko block karna */
-    div[style*="position: fixed"][style*="bottom"] {
-        display: none !important;
-    }
     </style>
 """
-st.markdown(hide_absolute_css, unsafe_allow_html=True)
+st.markdown(hide_css, unsafe_allow_html=True)
+
+# 2. JavaScript (Niche wale Red Icon aur Profile Picture ko pakad kar delete karne ke liye)
+hide_js = """
+    <script>
+    function removeStreamlitElements() {
+        // Un saare elements ko dhoondo jahan toolbar ya widget likha ho
+        const selectors = [
+            '[data-testid="stViewerToolbar"]',
+            '[data-testid="stStatusWidget"]',
+            '.stAppToolbar',
+            'div[class*="stIdentityWidget"]',
+            'div[data-testid="stUserAvatar"]'
+        ];
+        
+        selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => el.remove()); // Directly remove from page
+        });
+    }
+
+    // Har 500 milliseconds (aadhe second) baad check karo taake agar icon dobara aaye toh delete ho jaye
+    setInterval(removeStreamlitElements, 500);
+    </script>
+"""
+
+# Isko components.html ke zariye inject karenge
+import streamlit.components.v1 as components
+components.html(hide_js, height=0, width=0)
 
 db.init_db()
 ui.inject_custom_css()
