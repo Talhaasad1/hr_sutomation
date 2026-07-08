@@ -28,13 +28,14 @@ def login(username: str, password: str):
     return None
 
 
-def create_user(username: str, password: str, role: str, department: str = ""):
+def create_user(username: str, password: str, role: str, department: str = "", email: str = ""):
     import db
 
     if db.users.find_one({"username": username}):
         return False, "Username already exists."
     db.users.insert_one({
         "username": username, "password_hash": hash_password(password),
-        "role": role, "department": department, "active": True,
+        "role": role, "department": department, "email": email, "active": True,
+        "force_password_change": True,
     })
     return True, "User created successfully."

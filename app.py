@@ -26,65 +26,19 @@ import admin_pages
 
 st.set_page_config(page_title="ATS Portal", page_icon="🧑‍💼", layout="wide")
 
-# 2. Is HTML structure ke liye special JavaScript MutationObserver
-exact_cleaner_script = """
-    <style>
-    /* Default app headers aur footers ko pehle hi block karne ke liye */
-    header {visibility: hidden !important; display: none !important;}
-    #MainMenu {visibility: hidden !important; display: none !important;}
-    footer {visibility: hidden !important; display: none !important;}
-    </style>
 
-    <script>
-    // Yeh function targets ko dhoond kar page se delete karega
-    function cleanStreamlitElements() {
-        // React ke generated elements aur badges ko target karne wale selectors
-        const selectors = [
-            'div[class*="HostedWithStreamlit"]',
-            'div[class*="StatusWidget"]',
-            'div[class*="stIdentityWidget"]',
-            '[data-testid="stViewerToolbar"]',
-            '[data-testid="stStatusWidget"]',
-            '.stAppToolbar',
-            'div[data-testid="stUserAvatar"]'
-        ];
-        
-        selectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => el.remove());
-        });
+@st.cache_resource
+def _initialize_database():
+    """Seeds/indexes only need to happen once for the life of the server
+    process — not on every button click. Without this cache, db.init_db()
+    (count_documents x4 + create_index x2) was running on EVERY single
+    Streamlit rerun, adding several DB round-trips to every interaction."""
+    db.init_db()
+    return True
 
-        // Safe check: Agar inline style se position: fixed wali bottom row bani ho
-        document.querySelectorAll('div[style*="position: fixed"][style*="bottom"]').forEach(div => {
-            if (div.innerText.includes('Hosted with Streamlit') || div.innerText.includes('Created by')) {
-                div.remove();
-            }
-        });
-    }
 
-    // HTML ke #root element par nazar rakhne ke liye observer
-    const targetNode = document.getElementById('root') || document.body;
-    const config = { childList: true, subtree: true };
-
-    const callback = function(mutationsList, observer) {
-        cleanStreamlitElements();
-    };
-
-    const observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
-
-    // Backup ke liye har thodi der baad bhi run hota rahega
-    setInterval(cleanStreamlitElements, 300);
-    </script>
-"""
-
-# Script injection
-import streamlit.components.v1 as components
-components.html(exact_cleaner_script, height=0, width=0)
-
-db.init_db()
+_initialize_database()
 ui.inject_custom_css()
-
-
 
 defaults = {
     "mode": "career",       # "career" (public) or "staff" (logged-in backend)
@@ -159,7 +113,7 @@ if st.session_state.pending_clear_cookie:
 # CAREER PORTAL (public — no login required)
 # ---------------------------------------------------------------------------
 def career_portal():
-    db.auto_close_expired_jobs()
+    db.auto_close_expired_jobs_throttled()
     company_name = db.get_setting_value("company_name", "Your Company")
     ui.render_header(company_name, st.session_state.logo_bytes)
 
@@ -326,6 +280,61 @@ def login_page():
                         db.record_failed_login(username)
                         st.error("Invalid username or password.")
         st.caption("Demo credentials → username: `admin` | password: `admin123`")
+
+        with st.expander("Forgot your password?"):
+            st.caption("If your account has an email on file and the Admin has configured SMTP settings, "
+                       "you'll get a 6-digit reset code by email. Otherwise, ask your Admin to reset it for "
+                       "you from Admin Panel → Manage Users (no email needed for that option).")
+
+            if "reset_code_sent_for" not in st.session_state:
+                st.session_state.reset_code_sent_for = None
+
+            if st.session_state.reset_code_sent_for is None:
+                reset_username = st.text_input("Your username", key="reset_username_input")
+                if st.button("Send Reset Code"):
+                    user = db.users.find_one({"username": reset_username})
+                    smtp_server = db.get_setting_value("smtp_server")
+                    sender_email = db.get_setting_value("sender_email")
+                    sender_password = db.get_setting_value("sender_password")
+                    # Always show the same generic message whether or not the username exists,
+                    # so this can't be used to check which usernames are valid.
+                    if user and user.get("email") and smtp_server and sender_email and sender_password:
+                        code = db.create_password_reset_code(reset_username)
+                        email_service.send_email(
+                            smtp_server, int(db.get_setting_value("smtp_port", "587") or 587),
+                            sender_email, sender_password, user["email"],
+                            "Your password reset code",
+                            f"Your password reset code is: {code}\n\nThis code expires in "
+                            f"{db.PASSWORD_RESET_CODE_LIFETIME_MINUTES} minutes.",
+                        )
+                        st.session_state.reset_code_sent_for = reset_username
+                        st.rerun()
+                    else:
+                        st.info("If that account has an email on file, a reset code has been sent. "
+                                "If you don't receive anything, please ask your Admin to reset your "
+                                "password from Admin Panel → Manage Users.")
+            else:
+                st.success(f"Code sent for **{st.session_state.reset_code_sent_for}** (check your email).")
+                code = st.text_input("6-digit code", key="reset_code_input")
+                new_pw = st.text_input("New password", type="password", key="reset_new_pw")
+                confirm_pw = st.text_input("Confirm new password", type="password", key="reset_confirm_pw")
+                c1, c2 = st.columns(2)
+                if c1.button("Reset Password"):
+                    if len(new_pw) < 8:
+                        st.error("Password must be at least 8 characters long.")
+                    elif new_pw != confirm_pw:
+                        st.error("Passwords do not match.")
+                    elif not db.verify_password_reset_code(st.session_state.reset_code_sent_for, code):
+                        st.error("Invalid or expired code.")
+                    else:
+                        db.set_password(st.session_state.reset_code_sent_for, auth.hash_password(new_pw))
+                        db.consume_password_reset_code(st.session_state.reset_code_sent_for)
+                        st.session_state.reset_code_sent_for = None
+                        st.success("Password reset! You can now log in with your new password.")
+                if c2.button("Cancel"):
+                    st.session_state.reset_code_sent_for = None
+                    st.rerun()
+
         if st.button("← Back to Career Portal"):
             st.session_state.mode = "career"
             st.rerun()

@@ -154,7 +154,7 @@ def bulk_import_section():
 
 def jobs_page():
     st.subheader("Job Management")
-    db.auto_close_expired_jobs()
+    db.auto_close_expired_jobs_throttled()
     depts = db.get_department_names()
 
     with st.expander("Create New Job", expanded=len(db.get_jobs()) == 0):
@@ -504,9 +504,22 @@ def onboarding_page():
         st.info("No employee records yet.")
         return
 
+    status_filter = st.multiselect(
+        "Filter by Status", db.EMPLOYEE_STATUS_OPTIONS,
+        help="Leave empty to show employees in every status.",
+    )
+    filtered_employees = (
+        [e for e in employees if e.get("status", "Active") in status_filter]
+        if status_filter else employees
+    )
+
+    if not filtered_employees:
+        st.info("No employees match the selected status filter.")
+        return
+
     PAGE_SIZE = 25
-    page = ui.pagination_controls(len(employees), PAGE_SIZE, key="employees")
-    page_items = employees[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]
+    page = ui.pagination_controls(len(filtered_employees), PAGE_SIZE, key="employees")
+    page_items = filtered_employees[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]
 
     df = pd.DataFrame([{
         "Employee ID": e["employee_id"], "Name": e["name"], "Designation": e["designation"],
@@ -935,3 +948,11 @@ def settings_page():
         db.set_setting_value("ai_provider", provider)
         db.set_setting_value(setting_key, api_key)
         st.success(f"AI settings saved — using {provider} for resume screening.")
+
+    if st.button("🔌 Test AI Connection"):
+        with st.spinner(f"Testing connection to {provider}..."):
+            success, message = matching.test_ai_connection(provider, api_key)
+        if success:
+            st.success(message)
+        else:
+            st.error(message)

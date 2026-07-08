@@ -46,11 +46,13 @@ sessions = db.sessions
 login_attempts = db.login_attempts
 employees = db.employees
 background_tasks = db.background_tasks
+password_reset_codes = db.password_reset_codes
 
 SESSION_LIFETIME_HOURS = 24 * 7  # 7 days
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_MINUTES = 15
 MAX_RESUME_SIZE_MB = 8
+PASSWORD_RESET_CODE_LIFETIME_MINUTES = 15
 
 ATS_STAGES = [
     "Applied", "Screening", "Shortlisted", "Interview Scheduled",
@@ -111,6 +113,7 @@ def init_db():
     try:
         sessions.create_index("expires_at", expireAfterSeconds=0)
         login_attempts.create_index("last_attempt_at", expireAfterSeconds=LOCKOUT_MINUTES * 60)
+        password_reset_codes.create_index("expires_at", expireAfterSeconds=0)
     except Exception:
         pass  # index creation is best-effort (e.g. mongomock in tests may not support all options)
 
@@ -120,7 +123,7 @@ def init_db():
 
     if departments.count_documents({}) == 0:
         departments.insert_many([{"name": d} for d in
-                                  ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations", "Data Science"]])
+                                  ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"]])
 
     if settings.count_documents({}) == 0:
         settings.insert_many([
@@ -213,6 +216,24 @@ def auto_close_expired_jobs():
         {"$set": {"status": "Closed"}},
     )
     return result.modified_count
+
+
+def auto_close_expired_jobs_throttled(min_interval_seconds=120):
+    """Session-throttled wrapper around auto_close_expired_jobs() so it
+    doesn't add a database write to every single page rerun/interaction —
+    at most once per `min_interval_seconds` per browser session. Only call
+    this from inside a running Streamlit page (it needs st.session_state);
+    worker.py calls the plain auto_close_expired_jobs() directly instead,
+    on its own schedule, independent of any session."""
+    import time
+    import streamlit as st
+    key = "_last_auto_close_check"
+    now = time.time()
+    last = st.session_state.get(key, 0)
+    if now - last >= min_interval_seconds:
+        st.session_state[key] = now
+        return auto_close_expired_jobs()
+    return 0
 
 
 def get_department_names() -> list:
@@ -454,6 +475,59 @@ def clear_login_attempts(username: str):
 def set_password(username: str, new_password_hash: str):
     users.update_one({"username": username},
                       {"$set": {"password_hash": new_password_hash, "force_password_change": False}})
+
+
+# ---------------------------------------------------------------------------
+# Forgot Password (self-service, via email — reuses the SMTP settings already
+# configured for the portal's other automatic emails, so no new external
+# integration is required beyond what's already set up in Branding & AI).
+# ---------------------------------------------------------------------------
+def create_password_reset_code(username: str):
+    """Generates a 6-digit reset code for an existing user. Returns None if
+    the username doesn't exist (caller should show a generic message either
+    way, so this can't be used to enumerate valid usernames)."""
+    import random
+    user = users.find_one({"username": username})
+    if not user:
+        return None
+    code = f"{random.randint(0, 999999):06d}"
+    password_reset_codes.delete_many({"username": username})  # invalidate any earlier codes
+    password_reset_codes.insert_one({
+        "username": username, "code": code,
+        "expires_at": datetime.now() + timedelta(minutes=PASSWORD_RESET_CODE_LIFETIME_MINUTES),
+        "created_at": datetime.now(),
+    })
+    return code
+
+
+def verify_password_reset_code(username: str, code: str) -> bool:
+    doc = password_reset_codes.find_one({"username": username, "code": code})
+    if not doc:
+        return False
+    if doc["expires_at"] < datetime.now():
+        password_reset_codes.delete_one({"_id": doc["_id"]})
+        return False
+    return True
+
+
+def consume_password_reset_code(username: str):
+    password_reset_codes.delete_many({"username": username})
+
+
+def admin_reset_password(username: str) -> str:
+    """Zero-dependency fallback: Admin generates a random temporary password
+    for any user directly (no email required), and the user is forced to
+    change it on their next login."""
+    import secrets
+    temp_password = secrets.token_urlsafe(9)  # ~12 readable characters
+    users.update_one({"username": username},
+                      {"$set": {"password_hash": _hash_for_reset(temp_password), "force_password_change": True}})
+    return temp_password
+
+
+def _hash_for_reset(password: str) -> str:
+    import auth  # local import to avoid circular import
+    return auth.hash_password(password)
 
 
 # ---------------------------------------------------------------------------

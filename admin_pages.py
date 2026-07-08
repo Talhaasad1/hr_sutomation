@@ -32,18 +32,32 @@ def admin_panel_page():
             username = c1.text_input("Username")
             password = c2.text_input("Password", type="password")
             role = c3.selectbox("Role", ["HR", "Recruiter", "Admin"])
-            department = st.text_input("Department (optional)")
+            c4, c5 = st.columns(2)
+            department = c4.text_input("Department (optional)")
+            email = c5.text_input("Email (optional — enables self-service 'Forgot Password')")
             if st.form_submit_button("Create Account"):
-                success, msg = auth.create_user(username, password, role, department)
-                st.success(msg) if success else st.error(msg)
+                success, msg = auth.create_user(username, password, role, department, email)
+                st.success(msg + " They'll be asked to set their own password on first login.") if success else st.error(msg)
 
         st.markdown("#### All Staff Accounts")
         users = db.get_all_users()
         df = pd.DataFrame([{
-            "Username": u["username"], "Role": u["role"],
-            "Department": u.get("department", ""), "Active": u.get("active", True),
+            "Username": u["username"], "Role": u["role"], "Department": u.get("department", ""),
+            "Email": u.get("email", ""), "Active": u.get("active", True),
         } for u in users])
         st.dataframe(df, hide_index=True, width="stretch")
+
+        st.markdown("##### Reset a User's Password")
+        st.caption("Zero-dependency reset: generates a temporary password shown only to you here — "
+                   "share it with the user through any channel you like (WhatsApp, in person, etc.). "
+                   "They'll be forced to set their own new password on next login.")
+        usernames = [u["username"] for u in users]
+        reset_target = st.selectbox("Select user", usernames, key="reset_pw_user")
+        if st.button("🔑 Reset Password"):
+            temp_password = db.admin_reset_password(reset_target)
+            db.log_action(st.session_state.user["username"], "Admin Password Reset", reset_target)
+            st.success(f"Temporary password for **{reset_target}**: `{temp_password}`")
+            st.caption("This will only be shown once — copy it now.")
 
     with tabs[1]:
         st.markdown("#### All Jobs")

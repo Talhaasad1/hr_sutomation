@@ -39,6 +39,46 @@ Candidate login was intentionally **not** built as a separate authenticated
 portal, per your clarification — candidates only need the simple public apply
 form; HR does all evaluation from the backend.
 
+## 🆕 Latest Update (Performance Fix + Forgot Password + AI Error Visibility)
+
+### ⚡ Performance fix
+Every single interaction (button click, page navigation) was re-running
+`db.init_db()` — 4 `count_documents` checks + 2 `create_index` calls — even
+though that setup only ever needs to happen once. This was making the whole
+app feel sluggish. Fixed by wrapping it in `@st.cache_resource`, so it now
+runs exactly once per server process instead of once per click (measured:
+40 DB calls → 4 for the same 10 interactions in testing). The job
+auto-close check was similarly hitting the database on every rerun of the
+Career Portal / Job Management pages — now throttled to at most once every
+2 minutes per session via `db.auto_close_expired_jobs_throttled()`.
+
+### 🔑 Forgot Password (now wired up end-to-end)
+- **Zero-dependency option (always available):** Admin Panel → Manage Users
+  → select a user → **"🔑 Reset Password"** generates a temporary password
+  shown only to the Admin, who shares it with the user through any channel
+  (WhatsApp, in person, etc.). The user is then forced to set their own
+  password on next login. No email, no new integration, nothing to configure.
+- **Self-service option (needs an email on file + SMTP already configured):**
+  Login page → **"Forgot your password?"** → enter username → if that
+  account has an email on file (add one when creating the user in Admin
+  Panel) and SMTP is already set up (Admin Panel → Branding & AI), a
+  6-digit code is emailed (valid 15 minutes) to reset the password directly.
+  If either piece isn't set up, it safely falls back to pointing the user at
+  the Admin-reset option above — it never reveals whether a username exists.
+
+### 🤖 AI failures are now visible (helps diagnose things like Gemini's 429 rate-limit errors)
+If you've seen "AI evaluated with 0% success rate" or a `429 TooManyRequests`
+in your provider's dashboard, that's the provider's own rate limit/quota
+being hit (common on free-tier keys) — not a bug in the portal. Every AI
+call now retries once with a short backoff, and if it still fails, the
+**exact error** (e.g. the 429 detail) is logged to **Admin Panel → System
+Logs** under "AI Screening Failed" — so you can see precisely why it fell
+back to the TF-IDF evaluator instead of guessing. To fix a persistent 429:
+check/raise your quota or billing tier on the provider's dashboard, or
+switch providers in Admin Panel → Branding & AI. There's also a
+**"🔌 Test AI Connection"** button there to verify a key works before relying
+on it for live applications.
+
 ## 🆕 Recent Updates
 - **Candidate Pipeline**: added a Phone column, a Score Threshold slider to filter candidates, and a one-click
   **"Auto-Screen 'Applied' Candidates"** action — anyone at/above the threshold is auto-Shortlisted, anyone below
