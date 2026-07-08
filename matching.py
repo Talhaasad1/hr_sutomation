@@ -250,7 +250,7 @@ def test_ai_connection(provider: str, api_key: str):
  
     raw_caller = _RAW_CALLERS[provider]
     try:
-        result = raw_caller(api_key, "Reply with exactly the word: OK")
+        result = raw_caller(api_key, 'Reply with a short JSON object, like: {"status": "OK"}')
         return True, f"✅ Connected successfully. Sample response: {result[:100]!r}"
     except ImportError as e:
         return False, f"'{provider}' Python package not installed: {e}"
