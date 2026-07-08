@@ -933,11 +933,12 @@ def settings_page():
     )
     provider_key_setting = {
         "Claude": "anthropic_api_key", "OpenAI": "openai_api_key",
-        "Gemini": "gemini_api_key", "Grok": "grok_api_key",
+        "Gemini": "gemini_api_key", "Grok": "grok_api_key", "Groq": "groq_api_key",
     }
     key_labels = {
         "Claude": "Anthropic API Key", "OpenAI": "OpenAI API Key",
         "Gemini": "Google AI (Gemini) API Key", "Grok": "xAI (Grok) API Key",
+        "Groq": "Groq Cloud API Key",
     }
     setting_key = provider_key_setting[provider]
     api_key = st.text_input(

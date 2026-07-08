@@ -150,7 +150,7 @@ def get_ai_config():
         return None, None
     key_setting = {
         "Claude": "anthropic_api_key", "OpenAI": "openai_api_key",
-        "Gemini": "gemini_api_key", "Grok": "grok_api_key",
+        "Gemini": "gemini_api_key", "Grok": "grok_api_key", "Groq": "groq_api_key",
     }.get(provider)
     api_key = get_setting_value(key_setting, "") if key_setting else ""
     if not api_key:

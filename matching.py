@@ -19,11 +19,12 @@ import db
  
 # Supported AI providers for resume screening. Update these model names here
 # if a provider releases a newer model — this is the only place they're set.
-AI_PROVIDERS = ["Claude", "OpenAI", "Gemini", "Grok"]
+AI_PROVIDERS = ["Claude", "OpenAI", "Gemini", "Grok", "Groq"]
 CLAUDE_MODEL = "claude-sonnet-5"
 OPENAI_MODEL = "gpt-4o-mini"
 GEMINI_MODEL = "gemini-2.0-flash"
 GROK_MODEL = "grok-beta"       # xAI's Grok API is OpenAI-compatible
+GROQ_MODEL = "llama-3.3-70b-versatile" 
 AI_CALL_TIMEOUT_SECONDS = 20   # hard cap so a slow/unreachable AI API never freezes the portal
 AI_RATE_LIMIT_BACKOFF_SECONDS = 3  # short pause before the single retry on a 429
  
@@ -170,6 +171,18 @@ def _raw_call_grok(api_key: str, prompt: str):
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content.strip()
+
+def _raw_call_groq(api_key: str, prompt: str):
+    # Groq Cloud's API is also OpenAI-compatible, so we reuse the `openai`
+    # package with a different base_url instead of a separate SDK/dependency.
+    import openai
+    client = openai.OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", timeout=AI_CALL_TIMEOUT_SECONDS)
+    response = client.chat.completions.create(
+        model=GROQ_MODEL, max_tokens=600,
+        response_format={"type": "json_object"},
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content.strip()
  
  
 _RAW_CALLERS = {
@@ -177,6 +190,7 @@ _RAW_CALLERS = {
     "OpenAI": _raw_call_openai,
     "Gemini": _raw_call_gemini,
     "Grok": _raw_call_grok,
+    "Groq": _raw_call_groq,
 }
  
  
